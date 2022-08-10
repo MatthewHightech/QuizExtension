@@ -60,7 +60,7 @@ async function getKeywords(summary) {
             console.log("No keywords");
             keywords.push(null);
         } else {
-            keywords.push(keyword_list.ner[Math.floor(Math.random()*keyword_list.ner.length)].entity)
+            keywords.push(keyword_list.ner[Math.floor(Math.random()*keyword_list.ner.length)].entity);
         }
     }
     return keywords;
@@ -88,8 +88,10 @@ async function getDistractorList(distractor_type, keyword) {
         console.log("No distractor type");
         return null;
     }
-    const distractor_list = [keyword];
-    urls.distractors_list = 'https://api.conceptnet.io/c/en/' + distractor_type.toLowerCase().replace(" ", "_") + '?offset=0&limit=2000'
+    console.log("Keyword: ", keyword)
+    console.log("Distractor type: ", distractor_type)
+    const distractor_list = [keyword.toLowerCase()];
+    urls.distractors_list = 'https://api.conceptnet.io/c/en/' + distractor_type.toLowerCase().replace(" ", "_").replace("a ", "") + '?offset=0&limit=2000'
     const res = await getData(urls.distractors_list, options.distractors);
     const edges = res.edges;
     for(let i = 0; i < edges.length; i++) {
@@ -97,25 +99,28 @@ async function getDistractorList(distractor_type, keyword) {
             const type = edges[i]["end"]["label"];
             if (type == distractor_type) {
                 const fakeAnswer = edges[i]["start"]["label"];
-                if (!distractor_list.includes(fakeAnswer)) {
+                if (!distractor_list.includes(fakeAnswer.toLowerCase())) {
                     distractor_list.push(fakeAnswer);
                 }
-                if (distractor_list.length == 12 || distractor_list.length == edges.length-1) {
+                if (distractor_list.length == 10 || distractor_list.length == edges.length-1) {
                     break;
                 }
             }
         }
     }
     distractor_list.shift();
+    console.log("Distractor List: ", distractor_list);
     const finalList = [];
-    while (finalList.length < 3) {
+    for (let i = 0; i < distractor_list.length; i++) {
         const randomIndex = Math.floor(Math.random() * distractor_list.length);
         if (!finalList.includes(distractor_list[randomIndex])) {
             finalList.push(distractor_list[randomIndex]);
         }
+        if (finalList.length == 3) {
+            break;
+        }
     }
-    console.log("Keyword: ", keyword)
-    console.log("Distractor type: ", distractor_type)
+    console.log("Final List: ", finalList);
     
     return finalList;
 }
@@ -126,10 +131,10 @@ async function getDistractors(keywords) {
     const distractors = [];
     for (let i = 0; i < keywords.length; i++) {
         if (keywords[i] != null) {
-            const distractor_type = await getDistractorType(keywords[i]);
-            const distractor_list = await getDistractorList(distractor_type, keywords[i]);
-            if (distractor_list == null) {
-                console.log("No distractor list");
+            const distractor_type = await getDistractorType(keywords[i].toLowerCase());
+            const distractor_list = await getDistractorList(distractor_type, keywords[i].toLowerCase());
+            if (distractor_list == null || distractor_list.length < 3) {
+                console.log("No or to small distractor list");
                 distractors.push(null);
             } else {
                 distractors.push(distractor_list);
@@ -157,30 +162,74 @@ function buildFinalAnswers(keywords, distractors) {
     return finalAnswers;
 }
 
+function highlightCorrectAnswers(keywords) {
+    const questions = document.getElementsByClassName("q");  
+    console.log(keywords)
+    for (let i = 0; i < questions.length; i++) {
+        let index = questions[i].classList.item(1).replace(/\D/g, '');
+        const answers = questions[i].getElementsByClassName("options");
+        console.log(index)
+        console.log(keywords[index]);
+        for (let j = 0; j < answers.length; j++) {
+            if (answers[j].textContent == keywords[index]) {
+                answers[j].style.color = "green";
+                answers[j].style.fontWeight = 700;
+            }
+        }
+    }
+
+}
+
 function loadQuestionsIntoDOM(summary, keywords, finalAnswers) {
     const questionContainer = document.getElementById("question-container");
+    let validQuestions = 0;
     questionContainer.innerHTML = "";
     for (let i = 0; i < summary.length; i++) {
         if (finalAnswers[i] == null || finalAnswers[i].length < 4) {
             continue;
         }
+        validQuestions++;
         const question = document.createElement("div");
-        question.className = "question-"+i;
+        question.className = "q question-"+i;
         question.innerHTML = summary[i].replace(keywords[i], "__________");
 
-        const answers = document.createElement("ul");
+        const answers = document.createElement("div");
+        answers.id = "options";
         for (let j = 0; j < finalAnswers[i].length; j++) {
-            const answer = document.createElement("li");
-            answer.innerHTML = finalAnswers[i][j];
-            if (keywords.includes(finalAnswers[i][j])) {
-                answer.className = "correct";
-            }
+            const answer = document.createElement("label");
+            const text = document.createTextNode(finalAnswers[i][j]);
+            answer.appendChild(text);
+            answer.className = "options"
+            const input = document.createElement("input");
+            input.type = "radio";
+            input.name = "radio"+i;
+            const span = document.createElement("span");
+            span.className = "checkmark";
+            answer.appendChild(input);
+            answer.appendChild(span);
             answers.appendChild(answer);
         }
         question.appendChild(answers);
         questionContainer.appendChild(question);
+
     }
 
+    if (validQuestions == 0) {
+        questionContainer.innerHTML = "No questions found";
+    } else {
+        const submitButton = document.createElement("button");
+        submitButton.id = "submit-button";
+        submitButton.innerHTML = "Submit";
+        submitButton.className = "btn btn-success";
+        submitButton.onclick = function() {
+            highlightCorrectAnswers(keywords);
+        }
+        questionContainer.appendChild(submitButton);
+    }
+}
+
+function cleanText(text) {
+    return text.replace(/\n/g, " ").replace(/\s\s+/g, " ").replace(/\s+/g, " ").replace(/\s+$/g, "").replace(/^\s+/g, "");
 }
 
 
@@ -189,7 +238,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const questionContainer = document.getElementById("question-container");
 
     generate.addEventListener("click", async (e) => {
-        const text = document.getElementById("input_text").value;
+        const text = cleanText(document.getElementById("input_text").value);
         questionContainer.innerHTML = "Generating questions...";
 
         const summary = await getSummary(text);
