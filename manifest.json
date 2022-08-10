@@ -1,0 +1,21 @@
+{
+    "name": "Quiz Generator",
+    "version": "0.1.0",
+    "description": "Creates quizzes from online notes or articles",
+    "permissions": ["tabs"],
+    "host_permissions": ["https://*/*"],
+    "background": {
+      "service_worker": "background.js"
+    },
+    "content_scripts": [
+      {
+        "matches": ["https://*/*"],
+        "js": ["contentScript.js"]
+      }
+    ],
+    "action": {
+      "default_title": "Quiz Generator",
+      "default_popup": "popup.html"
+    },
+    "manifest_version": 3
+}
