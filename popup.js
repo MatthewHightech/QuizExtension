@@ -162,16 +162,17 @@ function buildFinalAnswers(keywords, distractors) {
     return finalAnswers;
 }
 
-function highlightCorrectAnswers(keywords) {
+function highlightCorrectAnswers(keywords, questionNumbers) {
     const questions = document.getElementsByClassName("q");  
-    console.log(keywords)
     for (let i = 0; i < questions.length; i++) {
-        let index = questions[i].classList.item(1).replace(/\D/g, '');
         const answers = questions[i].getElementsByClassName("options");
-        console.log(index)
-        console.log(keywords[index]);
+        const selectedAnswer = document.querySelector('input[name="radio'+ questionNumbers[i] +'"]:checked');
+        if (selectedAnswer.parentElement.textContent != keywords[questionNumbers[i]]) {
+            selectedAnswer.parentElement.style.color = "red";
+            selectedAnswer.parentElement.style.fontWeight = 700;
+        }
         for (let j = 0; j < answers.length; j++) {
-            if (answers[j].textContent == keywords[index]) {
+            if (answers[j].textContent == keywords[questionNumbers[i]]) {
                 answers[j].style.color = "green";
                 answers[j].style.fontWeight = 700;
             }
@@ -180,15 +181,41 @@ function highlightCorrectAnswers(keywords) {
 
 }
 
+function checkAnswers(questionNumbers) {
+    let numOfErrors = 0;
+    for (let i = 0; i < questionNumbers.length; i++) {
+        const selectedAnswer = document.querySelector('input[name="radio'+ questionNumbers[i] +'"]:checked');
+        const error_exists = document.getElementsByClassName("error"+questionNumbers[i]);
+        if (selectedAnswer == null) {
+            numOfErrors++;
+            if (error_exists.length == 0) {
+                const error = document.createElement("div");
+                error.innerHTML = "Please select an answer";
+                error.style.color = "red";
+                error.className = "error"+questionNumbers[i];
+                const question = document.getElementsByClassName("question-" + questionNumbers[i]);
+                if (question.length > 0) {
+                    question[0].appendChild(error);
+                }
+            }
+        } else {
+            if (error_exists.length > 0) {
+                error_exists[0].remove();
+            }
+        }
+    }
+    return numOfErrors != 0 ? false : true;
+}
+
 function loadQuestionsIntoDOM(summary, keywords, finalAnswers) {
     const questionContainer = document.getElementById("question-container");
-    let validQuestions = 0;
+    let validQuestions = [];
     questionContainer.innerHTML = "";
     for (let i = 0; i < summary.length; i++) {
         if (finalAnswers[i] == null || finalAnswers[i].length < 4) {
             continue;
         }
-        validQuestions++;
+        validQuestions.push(i);
         const question = document.createElement("div");
         question.className = "q question-"+i;
         question.innerHTML = summary[i].replace(keywords[i], "__________");
@@ -214,7 +241,7 @@ function loadQuestionsIntoDOM(summary, keywords, finalAnswers) {
 
     }
 
-    if (validQuestions == 0) {
+    if (validQuestions.length == 0) {
         questionContainer.innerHTML = "No questions found";
     } else {
         const submitButton = document.createElement("button");
@@ -222,7 +249,9 @@ function loadQuestionsIntoDOM(summary, keywords, finalAnswers) {
         submitButton.innerHTML = "Submit";
         submitButton.className = "btn btn-success";
         submitButton.onclick = function() {
-            highlightCorrectAnswers(keywords);
+            if (checkAnswers(validQuestions)) {
+                highlightCorrectAnswers(keywords, validQuestions);
+            }
         }
         questionContainer.appendChild(submitButton);
     }

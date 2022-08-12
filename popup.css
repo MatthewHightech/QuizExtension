@@ -4,9 +4,13 @@
 }
 
 .title {
-  font-size: 14px;
+  font-size: 18px;
   font-weight: bold;
-  margin: 8px 0;
+  margin: 6px 0;
+}
+
+p {
+  margin: 0;
 }
 
 .textbox {
