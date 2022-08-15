@@ -1,10 +1,13 @@
 {
-    "name": "Quiz Generator",
-    "version": "0.1.0",
+    "name": "Grasp",
+    "version": "0.2.0",
     "description": "Creates quizzes from online notes or articles",
     "action": {
-      "default_title": "Quiz Generator",
+      "default_title": "Grasp",
       "default_popup": "popup.html"
     },
-    "manifest_version": 3
+    "manifest_version": 3,
+    "icons": {
+      "128": "GraspLogo.png"
+  }
 }
